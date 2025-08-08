@@ -1,0 +1,89 @@
+# Bug Hunter Tool - Default Configuration
+
+general:
+  max_threads: 10
+  timeout: 30
+  user_agent: "BugHunter/1.0 (Automated Security Scanner)"
+  delay_between_requests: 0.1
+  max_retries: 3
+
+reconnaissance:
+  subdomain_enumeration: true
+  port_scanning: true
+  service_detection: true
+  technology_detection: true
+  directory_enumeration: true
+  default_ports: "80,443,8080,8443,3000,5000,8000,9000"
+  top_ports: 1000
+
+vulnerability_scanning:
+  web_vulnerabilities: true
+  network_vulnerabilities: true
+  ssl_tls_checks: true
+  cms_vulnerabilities: true
+  nuclei_templates: true
+  custom_payloads: true
+
+ai_analysis:
+  enabled: false
+  gemini_api_key: ""  # Set via environment variable GEMINI_API_KEY
+  model: "gemini-pro"
+  max_tokens: 4096
+  temperature: 0.3
+  analysis_types:
+    - "vulnerability_prioritization"
+    - "false_positive_detection"
+    - "payload_generation"
+    - "code_analysis"
+
+reporting:
+  format: "html"
+  include_screenshots: true
+  include_raw_output: false
+  severity_levels:
+    - "critical"
+    - "high"
+    - "medium"
+    - "low"
+    - "info"
+  auto_submit: false
+
+tools:
+  nmap:
+    path: "/usr/bin/nmap"
+    default_args: "-sS -sV -O --script=default"
+  nuclei:
+    path: "/usr/local/bin/nuclei"
+    templates_path: "~/.nuclei-templates"
+    default_args: "-silent -no-color"
+  sublist3r:
+    path: "sublist3r"
+    engines: "all"
+    threads: 40
+  gobuster:
+    path: "/usr/bin/gobuster"
+    wordlist: "/usr/share/wordlists/dirb/common.txt"
+    threads: 50
+  sqlmap:
+    path: "/usr/bin/sqlmap"
+    default_args: "--batch --random-agent"
+  nikto:
+    path: "/usr/bin/nikto"
+    default_args: "-ask no"
+
+wordlists:
+  subdomains:
+    - "/usr/share/wordlists/subdomains-top1million-5000.txt"
+    - "/usr/share/wordlists/subdomains.txt"
+  directories:
+    - "/usr/share/wordlists/dirb/common.txt"
+    - "/usr/share/wordlists/dirbuster/directory-list-2.3-medium.txt"
+  files:
+    - "/usr/share/wordlists/dirb/extensions_common.txt"
+
+output:
+  base_dir: "./reports"
+  create_subdirs: true
+  timestamp_format: "%Y%m%d_%H%M%S"
+  compress_reports: false
+

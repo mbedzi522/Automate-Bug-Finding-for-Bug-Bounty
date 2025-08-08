@@ -1,0 +1,72 @@
+{
+  "targets": [
+    "httpbin.org"
+  ],
+  "reconnaissance": {
+    "httpbin.org": {
+      "target": "httpbin.org",
+      "subdomains": [
+        "www.httpbin.org",
+        "eu.httpbin.org",
+        "httpbin.org",
+        "now.httpbin.org",
+        "staging.httpbin.org",
+        "*.httpbin.org",
+        "test.httpbin.org"
+      ],
+      "open_ports": [],
+      "services": {},
+      "technologies": {
+        "web_server": "gunicorn/19.9.0",
+        "cms": "magento",
+        "frameworks": [
+          "react",
+          "angular",
+          "jquery"
+        ],
+        "languages": [],
+        "databases": [],
+        "cdn": null
+      },
+      "directories": [],
+      "dns_records": {
+        "A": [
+          "3.224.80.105",
+          "3.232.35.54",
+          "54.158.253.62",
+          "35.171.113.93"
+        ],
+        "AAAA": [],
+        "MX": [],
+        "NS": [
+          "ns-1053.awsdns-03.org.",
+          "ns-1555.awsdns-02.co.uk.",
+          "ns-884.awsdns-46.net.",
+          "ns-173.awsdns-21.com."
+        ],
+        "TXT": [
+          "\"v=spf1 -all\""
+        ],
+        "CNAME": []
+      },
+      "ssl_info": {},
+      "whois_info": {},
+      "metadata": {
+        "scan_time": null,
+        "tools_used": [
+          "sublist3r",
+          "nmap",
+          "gobuster"
+        ]
+      }
+    }
+  },
+  "vulnerabilities": {},
+  "ai_analysis": {},
+  "metadata": {
+    "start_time": "2025-08-08T03:22:11.624313",
+    "tool_version": "1.0.0",
+    "scan_id": "bh_20250808_032211",
+    "end_time": "2025-08-08T03:22:24.821581"
+  }
+}

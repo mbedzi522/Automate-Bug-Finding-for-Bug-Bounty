@@ -1,0 +1,872 @@
+"""
+Reporter Module - Comprehensive report generation for bug hunting results
+"""
+
+import os
+import json
+import logging
+import time
+from datetime import datetime
+from pathlib import Path
+from typing import Dict, List, Any, Optional
+import base64
+
+class ReportGenerator:
+    """Generate comprehensive reports from bug hunting results"""
+    
+    def __init__(self, config):
+        """Initialize report generator"""
+        self.config = config
+        self.logger = logging.getLogger(__name__)
+        self.output_config = config.get('output') or {}
+        
+    def generate(self, results: Dict[str, Any], output_dir: str = None) -> str:
+        """Generate comprehensive report"""
+        self.logger.info("Generating comprehensive report...")
+        
+        # Determine output directory
+        if not output_dir:
+            output_dir = self.output_config.get('base_dir', './reports')
+        
+        # Create output directory
+        os.makedirs(output_dir, exist_ok=True)
+        
+        # Generate timestamp
+        timestamp = datetime.now().strftime(self.output_config.get('timestamp_format', '%Y%m%d_%H%M%S'))
+        
+        # Generate different report formats
+        reports_generated = []
+        
+        try:
+            # HTML Report (primary format)
+            html_report = self._generate_html_report(results, output_dir, timestamp)
+            reports_generated.append(html_report)
+            
+            # JSON Report (raw data)
+            json_report = self._generate_json_report(results, output_dir, timestamp)
+            reports_generated.append(json_report)
+            
+            # Executive Summary (PDF)
+            exec_summary = self._generate_executive_summary(results, output_dir, timestamp)
+            if exec_summary:
+                reports_generated.append(exec_summary)
+            
+            # CSV Report (vulnerability list)
+            csv_report = self._generate_csv_report(results, output_dir, timestamp)
+            reports_generated.append(csv_report)
+            
+            self.logger.info(f"Generated {len(reports_generated)} reports")
+            return html_report  # Return primary report path
+            
+        except Exception as e:
+            self.logger.error(f"Error generating reports: {str(e)}")
+            raise
+    
+    def _generate_html_report(self, results: Dict[str, Any], output_dir: str, timestamp: str) -> str:
+        """Generate comprehensive HTML report"""
+        report_path = os.path.join(output_dir, f"bug_hunter_report_{timestamp}.html")
+        
+        # Generate HTML content
+        html_content = self._create_html_template(results)
+        
+        with open(report_path, 'w', encoding='utf-8') as f:
+            f.write(html_content)
+        
+        self.logger.info(f"HTML report generated: {report_path}")
+        return report_path
+    
+    def _create_html_template(self, results: Dict[str, Any]) -> str:
+        """Create HTML report template"""
+        
+        # Calculate summary statistics
+        summary = self._calculate_summary(results)
+        
+        html = f"""
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bug Hunter Security Report</title>
+    <style>
+        {self._get_css_styles()}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header class="report-header">
+            <h1>🔍 Bug Hunter Security Report</h1>
+            <div class="report-meta">
+                <p><strong>Scan ID:</strong> {results.get('metadata', {}).get('scan_id', 'Unknown')}</p>
+                <p><strong>Generated:</strong> {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
+                <p><strong>Targets:</strong> {len(results.get('targets', []))}</p>
+            </div>
+        </header>
+        
+        <section class="executive-summary">
+            <h2>📊 Executive Summary</h2>
+            {self._generate_summary_section(summary)}
+        </section>
+        
+        <section class="vulnerability-overview">
+            <h2>🚨 Vulnerability Overview</h2>
+            {self._generate_vulnerability_overview(results)}
+        </section>
+        
+        <section class="detailed-findings">
+            <h2>🔍 Detailed Findings</h2>
+            {self._generate_detailed_findings(results)}
+        </section>
+        
+        <section class="reconnaissance-results">
+            <h2>🕵️ Reconnaissance Results</h2>
+            {self._generate_reconnaissance_section(results)}
+        </section>
+        
+        <section class="ai-analysis">
+            <h2>🤖 AI Analysis</h2>
+            {self._generate_ai_analysis_section(results)}
+        </section>
+        
+        <section class="recommendations">
+            <h2>💡 Recommendations</h2>
+            {self._generate_recommendations_section(results)}
+        </section>
+        
+        <footer class="report-footer">
+            <p>Generated by Bug Hunter Tool v1.0 | {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
+        </footer>
+    </div>
+    
+    <script>
+        {self._get_javascript()}
+    </script>
+</body>
+</html>
+        """
+        
+        return html
+    
+    def _get_css_styles(self) -> str:
+        """Get CSS styles for HTML report"""
+        return """
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f5f5f5;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: white;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        
+        .report-header {
+            text-align: center;
+            padding: 30px 0;
+            border-bottom: 3px solid #007bff;
+            margin-bottom: 30px;
+        }
+        
+        .report-header h1 {
+            color: #007bff;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+        
+        .report-meta {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            margin-top: 20px;
+        }
+        
+        .report-meta p {
+            background-color: #f8f9fa;
+            padding: 10px 15px;
+            border-radius: 5px;
+            border-left: 4px solid #007bff;
+        }
+        
+        section {
+            margin-bottom: 40px;
+            padding: 20px;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        h2 {
+            color: #007bff;
+            font-size: 1.8em;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #e9ecef;
+        }
+        
+        h3 {
+            color: #495057;
+            font-size: 1.3em;
+            margin-bottom: 15px;
+        }
+        
+        .severity-critical {
+            background-color: #dc3545;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 3px;
+            font-weight: bold;
+        }
+        
+        .severity-high {
+            background-color: #fd7e14;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 3px;
+            font-weight: bold;
+        }
+        
+        .severity-medium {
+            background-color: #ffc107;
+            color: black;
+            padding: 5px 10px;
+            border-radius: 3px;
+            font-weight: bold;
+        }
+        
+        .severity-low {
+            background-color: #28a745;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 3px;
+            font-weight: bold;
+        }
+        
+        .severity-info {
+            background-color: #17a2b8;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 3px;
+            font-weight: bold;
+        }
+        
+        .vulnerability-card {
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            background-color: #f8f9fa;
+        }
+        
+        .vulnerability-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        .vulnerability-title {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #495057;
+        }
+        
+        .vulnerability-details {
+            margin-top: 15px;
+        }
+        
+        .detail-item {
+            margin-bottom: 10px;
+        }
+        
+        .detail-label {
+            font-weight: bold;
+            color: #6c757d;
+            display: inline-block;
+            width: 120px;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .stat-card {
+            background-color: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+            border-left: 4px solid #007bff;
+        }
+        
+        .stat-number {
+            font-size: 2em;
+            font-weight: bold;
+            color: #007bff;
+        }
+        
+        .stat-label {
+            color: #6c757d;
+            margin-top: 5px;
+        }
+        
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        
+        .table th,
+        .table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #dee2e6;
+        }
+        
+        .table th {
+            background-color: #f8f9fa;
+            font-weight: bold;
+            color: #495057;
+        }
+        
+        .table tr:hover {
+            background-color: #f5f5f5;
+        }
+        
+        .code-block {
+            background-color: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 4px;
+            padding: 15px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            overflow-x: auto;
+            margin: 10px 0;
+        }
+        
+        .alert {
+            padding: 15px;
+            margin-bottom: 20px;
+            border: 1px solid transparent;
+            border-radius: 4px;
+        }
+        
+        .alert-info {
+            color: #0c5460;
+            background-color: #d1ecf1;
+            border-color: #bee5eb;
+        }
+        
+        .alert-warning {
+            color: #856404;
+            background-color: #fff3cd;
+            border-color: #ffeaa7;
+        }
+        
+        .alert-danger {
+            color: #721c24;
+            background-color: #f8d7da;
+            border-color: #f5c6cb;
+        }
+        
+        .report-footer {
+            text-align: center;
+            padding: 20px;
+            border-top: 2px solid #e9ecef;
+            margin-top: 40px;
+            color: #6c757d;
+        }
+        
+        .collapsible {
+            cursor: pointer;
+            padding: 10px;
+            background-color: #f1f1f1;
+            border: none;
+            text-align: left;
+            outline: none;
+            font-size: 15px;
+            width: 100%;
+            margin-bottom: 5px;
+        }
+        
+        .collapsible:hover {
+            background-color: #ddd;
+        }
+        
+        .content {
+            padding: 0 18px;
+            display: none;
+            overflow: hidden;
+            background-color: #f9f9f9;
+        }
+        
+        .content.active {
+            display: block;
+        }
+        """
+    
+    def _get_javascript(self) -> str:
+        """Get JavaScript for interactive features"""
+        return """
+        // Collapsible sections
+        document.addEventListener('DOMContentLoaded', function() {
+            var coll = document.getElementsByClassName('collapsible');
+            for (var i = 0; i < coll.length; i++) {
+                coll[i].addEventListener('click', function() {
+                    this.classList.toggle('active');
+                    var content = this.nextElementSibling;
+                    if (content.style.display === 'block') {
+                        content.style.display = 'none';
+                    } else {
+                        content.style.display = 'block';
+                    }
+                });
+            }
+        });
+        
+        // Severity filter
+        function filterBySeverity(severity) {
+            var cards = document.getElementsByClassName('vulnerability-card');
+            for (var i = 0; i < cards.length; i++) {
+                var cardSeverity = cards[i].getAttribute('data-severity');
+                if (severity === 'all' || cardSeverity === severity) {
+                    cards[i].style.display = 'block';
+                } else {
+                    cards[i].style.display = 'none';
+                }
+            }
+        }
+        """
+    
+    def _calculate_summary(self, results: Dict[str, Any]) -> Dict[str, Any]:
+        """Calculate summary statistics"""
+        summary = {
+            'total_targets': len(results.get('targets', [])),
+            'total_subdomains': 0,
+            'total_vulnerabilities': 0,
+            'critical_vulns': 0,
+            'high_vulns': 0,
+            'medium_vulns': 0,
+            'low_vulns': 0,
+            'info_vulns': 0,
+            'total_ports': 0,
+            'web_services': 0
+        }
+        
+        # Count vulnerabilities by severity
+        for target in results.get('targets', []):
+            vuln_data = results.get('vulnerabilities', {}).get(target, {})
+            recon_data = results.get('reconnaissance', {}).get(target, {})
+            
+            vulnerabilities = vuln_data.get('vulnerabilities', [])
+            summary['total_vulnerabilities'] += len(vulnerabilities)
+            
+            for vuln in vulnerabilities:
+                severity = vuln.get('severity', 'info').lower()
+                if severity == 'critical':
+                    summary['critical_vulns'] += 1
+                elif severity == 'high':
+                    summary['high_vulns'] += 1
+                elif severity == 'medium':
+                    summary['medium_vulns'] += 1
+                elif severity == 'low':
+                    summary['low_vulns'] += 1
+                else:
+                    summary['info_vulns'] += 1
+            
+            # Count reconnaissance data
+            summary['total_subdomains'] += len(recon_data.get('subdomains', []))
+            summary['total_ports'] += len(recon_data.get('open_ports', []))
+            
+            services = recon_data.get('services', {})
+            summary['web_services'] += len([s for s in services if 'http' in s])
+        
+        return summary
+    
+    def _generate_summary_section(self, summary: Dict[str, Any]) -> str:
+        """Generate executive summary section"""
+        return f"""
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-number">{summary['total_targets']}</div>
+                <div class="stat-label">Targets Scanned</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">{summary['total_vulnerabilities']}</div>
+                <div class="stat-label">Total Vulnerabilities</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">{summary['critical_vulns']}</div>
+                <div class="stat-label">Critical Issues</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">{summary['high_vulns']}</div>
+                <div class="stat-label">High Risk Issues</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">{summary['total_subdomains']}</div>
+                <div class="stat-label">Subdomains Found</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">{summary['web_services']}</div>
+                <div class="stat-label">Web Services</div>
+            </div>
+        </div>
+        
+        <div class="alert alert-info">
+            <strong>Risk Assessment:</strong> 
+            {self._get_risk_level(summary)} risk level based on vulnerability distribution and attack surface.
+        </div>
+        """
+    
+    def _get_risk_level(self, summary: Dict[str, Any]) -> str:
+        """Determine overall risk level"""
+        if summary['critical_vulns'] > 0:
+            return "Critical"
+        elif summary['high_vulns'] > 3:
+            return "High"
+        elif summary['high_vulns'] > 0 or summary['medium_vulns'] > 5:
+            return "Medium"
+        else:
+            return "Low"
+    
+    def _generate_vulnerability_overview(self, results: Dict[str, Any]) -> str:
+        """Generate vulnerability overview section"""
+        html = """
+        <div class="alert alert-warning">
+            <strong>Filter by Severity:</strong>
+            <button onclick="filterBySeverity('all')" style="margin: 5px; padding: 5px 10px;">All</button>
+            <button onclick="filterBySeverity('critical')" style="margin: 5px; padding: 5px 10px; background-color: #dc3545; color: white; border: none;">Critical</button>
+            <button onclick="filterBySeverity('high')" style="margin: 5px; padding: 5px 10px; background-color: #fd7e14; color: white; border: none;">High</button>
+            <button onclick="filterBySeverity('medium')" style="margin: 5px; padding: 5px 10px; background-color: #ffc107; color: black; border: none;">Medium</button>
+            <button onclick="filterBySeverity('low')" style="margin: 5px; padding: 5px 10px; background-color: #28a745; color: white; border: none;">Low</button>
+        </div>
+        """
+        
+        # Collect all vulnerabilities
+        all_vulnerabilities = []
+        for target in results.get('targets', []):
+            vuln_data = results.get('vulnerabilities', {}).get(target, {})
+            vulnerabilities = vuln_data.get('vulnerabilities', [])
+            
+            for vuln in vulnerabilities:
+                vuln['target'] = target
+                all_vulnerabilities.append(vuln)
+        
+        # Sort by severity
+        severity_order = {'critical': 0, 'high': 1, 'medium': 2, 'low': 3, 'info': 4}
+        all_vulnerabilities.sort(key=lambda x: severity_order.get(x.get('severity', 'info').lower(), 5))
+        
+        for vuln in all_vulnerabilities:
+            severity = vuln.get('severity', 'info').lower()
+            html += f"""
+            <div class="vulnerability-card" data-severity="{severity}">
+                <div class="vulnerability-header">
+                    <div class="vulnerability-title">{vuln.get('title', 'Unknown Vulnerability')}</div>
+                    <span class="severity-{severity}">{severity.upper()}</span>
+                </div>
+                <div class="vulnerability-details">
+                    <div class="detail-item">
+                        <span class="detail-label">Type:</span>
+                        {vuln.get('type', 'Unknown')}
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Target:</span>
+                        {vuln.get('target', 'Unknown')}
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">URL:</span>
+                        {vuln.get('url', 'N/A')}
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Description:</span>
+                        {vuln.get('description', 'No description available')}
+                    </div>
+                    {f'<div class="detail-item"><span class="detail-label">Evidence:</span><div class="code-block">{vuln.get("evidence", "No evidence available")}</div></div>' if vuln.get('evidence') else ''}
+                </div>
+            </div>
+            """
+        
+        return html
+    
+    def _generate_detailed_findings(self, results: Dict[str, Any]) -> str:
+        """Generate detailed findings section"""
+        html = ""
+        
+        for target in results.get('targets', []):
+            vuln_data = results.get('vulnerabilities', {}).get(target, {})
+            scan_summary = vuln_data.get('scan_summary', {})
+            
+            html += f"""
+            <h3>Target: {target}</h3>
+            <table class="table">
+                <tr>
+                    <th>Metric</th>
+                    <th>Count</th>
+                </tr>
+                <tr>
+                    <td>Total Vulnerabilities</td>
+                    <td>{scan_summary.get('total_vulnerabilities', 0)}</td>
+                </tr>
+                <tr>
+                    <td>Critical</td>
+                    <td>{scan_summary.get('critical', 0)}</td>
+                </tr>
+                <tr>
+                    <td>High</td>
+                    <td>{scan_summary.get('high', 0)}</td>
+                </tr>
+                <tr>
+                    <td>Medium</td>
+                    <td>{scan_summary.get('medium', 0)}</td>
+                </tr>
+                <tr>
+                    <td>Low</td>
+                    <td>{scan_summary.get('low', 0)}</td>
+                </tr>
+                <tr>
+                    <td>Info</td>
+                    <td>{scan_summary.get('info', 0)}</td>
+                </tr>
+            </table>
+            """
+        
+        return html
+    
+    def _generate_reconnaissance_section(self, results: Dict[str, Any]) -> str:
+        """Generate reconnaissance results section"""
+        html = ""
+        
+        for target in results.get('targets', []):
+            recon_data = results.get('reconnaissance', {}).get(target, {})
+            
+            html += f"""
+            <h3>Target: {target}</h3>
+            
+            <button class="collapsible">Subdomains ({len(recon_data.get('subdomains', []))})</button>
+            <div class="content">
+                <ul>
+                    {' '.join(f'<li>{subdomain}</li>' for subdomain in recon_data.get('subdomains', []))}
+                </ul>
+            </div>
+            
+            <button class="collapsible">Open Ports ({len(recon_data.get('open_ports', []))})</button>
+            <div class="content">
+                <table class="table">
+                    <tr>
+                        <th>Port</th>
+                        <th>Protocol</th>
+                        <th>Service</th>
+                        <th>Version</th>
+                    </tr>
+                    {' '.join(f'<tr><td>{port.get("port")}</td><td>{port.get("protocol")}</td><td>{port.get("service")}</td><td>{port.get("version", "Unknown")}</td></tr>' for port in recon_data.get('open_ports', []))}
+                </table>
+            </div>
+            
+            <button class="collapsible">Technologies</button>
+            <div class="content">
+                <div class="code-block">
+                    {json.dumps(recon_data.get('technologies', {}), indent=2)}
+                </div>
+            </div>
+            """
+        
+        return html
+    
+    def _generate_ai_analysis_section(self, results: Dict[str, Any]) -> str:
+        """Generate AI analysis section"""
+        html = ""
+        
+        for target in results.get('targets', []):
+            ai_data = results.get('ai_analysis', {}).get(target, {})
+            
+            if not ai_data or 'error' in ai_data:
+                html += f"""
+                <h3>Target: {target}</h3>
+                <div class="alert alert-info">
+                    AI analysis not available for this target.
+                </div>
+                """
+                continue
+            
+            html += f"""
+            <h3>Target: {target}</h3>
+            
+            <button class="collapsible">Vulnerability Prioritization</button>
+            <div class="content">
+                <div class="code-block">
+                    {json.dumps(ai_data.get('vulnerability_prioritization', []), indent=2)}
+                </div>
+            </div>
+            
+            <button class="collapsible">Risk Assessment</button>
+            <div class="content">
+                <div class="code-block">
+                    {json.dumps(ai_data.get('risk_assessment', {}), indent=2)}
+                </div>
+            </div>
+            
+            <button class="collapsible">Attack Vectors</button>
+            <div class="content">
+                <div class="code-block">
+                    {json.dumps(ai_data.get('attack_vectors', []), indent=2)}
+                </div>
+            </div>
+            """
+        
+        return html
+    
+    def _generate_recommendations_section(self, results: Dict[str, Any]) -> str:
+        """Generate recommendations section"""
+        html = """
+        <div class="alert alert-info">
+            <strong>General Recommendations:</strong>
+        </div>
+        <ul>
+            <li>Address critical and high-severity vulnerabilities immediately</li>
+            <li>Implement proper input validation and output encoding</li>
+            <li>Keep all software and frameworks up to date</li>
+            <li>Implement security headers and proper SSL/TLS configuration</li>
+            <li>Regular security testing and code reviews</li>
+            <li>Implement proper access controls and authentication mechanisms</li>
+        </ul>
+        """
+        
+        # Add AI-generated recommendations if available
+        for target in results.get('targets', []):
+            ai_data = results.get('ai_analysis', {}).get(target, {})
+            remediation_suggestions = ai_data.get('remediation_suggestions', [])
+            
+            if remediation_suggestions:
+                html += f"""
+                <h3>AI-Generated Recommendations for {target}</h3>
+                <div class="code-block">
+                    {json.dumps(remediation_suggestions, indent=2)}
+                </div>
+                """
+        
+        return html
+    
+    def _generate_json_report(self, results: Dict[str, Any], output_dir: str, timestamp: str) -> str:
+        """Generate JSON report with raw data"""
+        report_path = os.path.join(output_dir, f"bug_hunter_raw_{timestamp}.json")
+        
+        with open(report_path, 'w', encoding='utf-8') as f:
+            json.dump(results, f, indent=2, default=str)
+        
+        self.logger.info(f"JSON report generated: {report_path}")
+        return report_path
+    
+    def _generate_executive_summary(self, results: Dict[str, Any], output_dir: str, timestamp: str) -> Optional[str]:
+        """Generate executive summary document"""
+        try:
+            # Check if AI analysis is available
+            ai_available = False
+            for target in results.get('targets', []):
+                if results.get('ai_analysis', {}).get(target):
+                    ai_available = True
+                    break
+            
+            if not ai_available:
+                return None
+            
+            summary_path = os.path.join(output_dir, f"executive_summary_{timestamp}.md")
+            
+            # Generate executive summary content
+            summary_content = self._create_executive_summary_content(results)
+            
+            with open(summary_path, 'w', encoding='utf-8') as f:
+                f.write(summary_content)
+            
+            self.logger.info(f"Executive summary generated: {summary_path}")
+            return summary_path
+            
+        except Exception as e:
+            self.logger.error(f"Error generating executive summary: {str(e)}")
+            return None
+    
+    def _create_executive_summary_content(self, results: Dict[str, Any]) -> str:
+        """Create executive summary content"""
+        summary = self._calculate_summary(results)
+        
+        content = f"""# Executive Security Assessment Summary
+
+## Overview
+This report summarizes the security assessment conducted on {summary['total_targets']} target(s) using automated bug hunting techniques enhanced with AI analysis.
+
+## Key Findings
+- **Total Vulnerabilities Identified:** {summary['total_vulnerabilities']}
+- **Critical Issues:** {summary['critical_vulns']}
+- **High Risk Issues:** {summary['high_vulns']}
+- **Medium Risk Issues:** {summary['medium_vulns']}
+- **Attack Surface:** {summary['total_subdomains']} subdomains, {summary['web_services']} web services
+
+## Risk Assessment
+**Overall Risk Level:** {self._get_risk_level(summary)}
+
+## Immediate Actions Required
+1. Address all critical vulnerabilities immediately
+2. Implement security patches for high-risk issues
+3. Review and strengthen security configurations
+4. Implement proper monitoring and detection capabilities
+
+## Strategic Recommendations
+1. Establish regular security testing procedures
+2. Implement security-by-design principles
+3. Enhance security awareness training
+4. Consider bug bounty program participation
+
+---
+*Generated by Bug Hunter Tool with AI Analysis*
+"""
+        
+        return content
+    
+    def _generate_csv_report(self, results: Dict[str, Any], output_dir: str, timestamp: str) -> str:
+        """Generate CSV report for vulnerability tracking"""
+        import csv
+        
+        report_path = os.path.join(output_dir, f"vulnerabilities_{timestamp}.csv")
+        
+        # Collect all vulnerabilities
+        all_vulnerabilities = []
+        for target in results.get('targets', []):
+            vuln_data = results.get('vulnerabilities', {}).get(target, {})
+            vulnerabilities = vuln_data.get('vulnerabilities', [])
+            
+            for vuln in vulnerabilities:
+                all_vulnerabilities.append({
+                    'Target': target,
+                    'Type': vuln.get('type', 'Unknown'),
+                    'Severity': vuln.get('severity', 'Unknown'),
+                    'Title': vuln.get('title', 'Unknown'),
+                    'Description': vuln.get('description', ''),
+                    'URL': vuln.get('url', ''),
+                    'Evidence': vuln.get('evidence', '')[:100] + '...' if len(vuln.get('evidence', '')) > 100 else vuln.get('evidence', '')
+                })
+        
+        # Write CSV file
+        if all_vulnerabilities:
+            with open(report_path, 'w', newline='', encoding='utf-8') as csvfile:
+                fieldnames = ['Target', 'Type', 'Severity', 'Title', 'Description', 'URL', 'Evidence']
+                writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+                
+                writer.writeheader()
+                for vuln in all_vulnerabilities:
+                    writer.writerow(vuln)
+        
+        self.logger.info(f"CSV report generated: {report_path}")
+        return report_path
+
